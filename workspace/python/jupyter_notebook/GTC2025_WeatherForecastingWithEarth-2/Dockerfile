@@ -16,7 +16,7 @@ RUN uv pip install --system --break-system-packages --upgrade ipywidgets "jupyte
 RUN uv pip install --system --break-system-packages cartopy seaborn windpowerlib==0.2.2 "zarr>=3" "warp-lang<1.13"
 RUN uv pip install --system --break-system-packages --no-build-isolation "torch-harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git@a632ca748a12bd9f74dbc1e00653317810991f74"
 RUN uv pip install --system --break-system-packages "makani @ git+https://github.com/NVIDIA/makani.git@b38fcb2799d7dbc146fa60459f3f9823394a8bf1"
-RUN uv pip install --system --break-system-packages "earth2studio[data,corrdiff,perturbation,sfno] @ git+https://github.com/swbg/earth2studio.git@stefan/earth2dli-26.05"
+RUN uv pip install --system --break-system-packages "earth2studio[data,corrdiff,perturbation,sfno] @ git+https://github.com/NVIDIA/earth2studio.git@0.14.0"
 RUN uv pip install --system --break-system-packages nvidia-ml-py && uv pip uninstall --system --break-system-packages pynvml
 
 # Download plotting assets
