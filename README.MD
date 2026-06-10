@@ -39,6 +39,9 @@ The content is structured in multiple modules covering the following:
            and multi-scale geometry conditioning through interactive visualization.
   - Lab 2: The "Pipeline": Training GeoTransolver on automotive aerodynamics datasets 
            using PhysicsNeMo (will be added soon).
+- Earth-2 workshops presented at GTC
+  - GTC 2025: Running AI weather inference with Earth2Studio
+  - GTC 2026: Training AI weather models with PhysicsNeMo
 
 
 ## Tools and frameworks:
