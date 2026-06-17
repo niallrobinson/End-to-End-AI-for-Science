@@ -1,0 +1,20 @@
+# Extra Python dependencies for the End-to-End AI for Science bootcamp,
+# installed on top of the NVIDIA PhysicsNeMo 26.05 base image.
+
+# --- Jupyter ---
+jupyterlab
+jupyterlab-widgets
+ipywidgets
+ipympl
+jupyter-resource-usage
+jupyter-archive
+nbconvert
+
+# --- Earth-2 / weather (Module 3 + GTC workshops) ---
+earth2studio==0.14.0
+
+# --- Scientific / plotting / data access ---
+cartopy
+mlflow
+gdown
+cdsapi

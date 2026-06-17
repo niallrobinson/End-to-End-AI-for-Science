@@ -1,0 +1,37 @@
+name: end-to-end-ai-for-science
+
+# Brev launchable for the End-to-End AI for Science bootcamp.
+#
+# This builds the image locally from the official NVIDIA PhysicsNeMo 26.05
+# container (see brev/dockerfile) and installs the bootcamp dependencies.
+# No custom image is pulled or pushed - everything is built on the instance.
+#
+# Local usage:
+#   docker compose -f brev/docker-compose.yml up --build
+# then open http://localhost:8888
+
+services:
+  jupyter:
+    build:
+      # Build context is the repo root so the image can COPY workspace/.
+      context: ..
+      dockerfile: brev/dockerfile
+    image: end-to-end-ai-for-science:26.05  # local tag only, never pushed
+    pull_policy: missing
+    # GPU + large-workload settings (mirrors the bootcamp's docker run flags).
+    privileged: true
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    shm_size: 1g
+    ports:
+      - "8888:8888"  # JupyterLab
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

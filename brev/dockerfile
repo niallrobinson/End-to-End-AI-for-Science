@@ -1,0 +1,46 @@
+# Copyright (c) 2025 NVIDIA Corporation.  All rights reserved.
+#
+# Brev launchable image for the "End-to-End AI for Science" bootcamp.
+# This builds *on top of* the official NVIDIA PhysicsNeMo container and
+# installs the additional Python/system dependencies the notebooks need.
+# Nothing is pushed to a registry - Brev builds this locally on the instance
+# from the PhysicsNeMo base image via docker compose.
+#
+# Base image: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo
+
+FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    SHELL=/bin/bash \
+    PIP_ROOT_USER_ACTION=ignore \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# System dependencies:
+#   ffmpeg            - rendering animations / videos in the notebooks
+#   git               - pip installs from git, notebook clones
+#   libgl1/libegl1/.. - headless rendering for cartopy / matplotlib / pyvista
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    git \
+    libgl1 \
+    libglx-mesa0 \
+    libegl1 \
+ && apt-get clean -y \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better Docker layer caching.
+COPY brev/requirements.txt /opt/requirements.txt
+RUN pip install --no-cache-dir -r /opt/requirements.txt \
+ && rm -f /opt/requirements.txt \
+ && jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true
+
+# Copy the bootcamp materials into the image.
+COPY workspace/ /workspace/
+
+WORKDIR /workspace/python
+EXPOSE 8888
+
+COPY brev/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
