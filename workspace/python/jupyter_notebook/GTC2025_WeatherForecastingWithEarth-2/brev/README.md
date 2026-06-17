@@ -4,75 +4,68 @@ This folder defines a [Brev](https://developer.nvidia.com/brev) launchable for t
 GTC2025 **"Applying AI Weather Models with NVIDIA Earth-2"** workshop (the
 notebooks in this directory). It builds on top of the official
 [NVIDIA PhysicsNeMo 26.05](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo?version=26.05)
-container and installs the workshop dependencies **and Earth-2 data** via Docker
-Compose, then serves the workshop in JupyterLab.
+container, installs the workshop dependencies, and serves the workshop in
+JupyterLab.
 
 The dependency set mirrors this workshop's own [`../Dockerfile`](../Dockerfile)
-— `makani`, `torch-harmonics`, the full `earth2studio` extras, the plotting
-libraries, and the prefetched Earth-2 model checkpoints + weather data — but on
-the PhysicsNeMo 26.05 base instead of the plain PyTorch base, so users land in a
-fully-provisioned environment.
+— `makani`, `torch-harmonics`, the full `earth2studio` extras, and the plotting
+libraries — but on the PhysicsNeMo 26.05 base instead of the plain PyTorch base.
 
 > The image is **built from the PhysicsNeMo base on the instance** — nothing is
 > pushed to or pulled from a private registry.
+
+## How this works on Brev (VM mode)
+
+Brev's *compose-mode* launchables require a prebuilt, pullable image and reject
+`build:` contexts. To build on the instance from the PhysicsNeMo base (no
+published image), use a **VM-mode** launchable: Brev clones this repo onto the
+VM and runs a setup script that builds + starts the stack with
+`docker compose up -d`.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| [`docker-compose.yml`](docker-compose.yml) | Brev entrypoint. Builds `dockerfile`, requests all GPUs, exposes JupyterLab on `8888`. |
-| [`dockerfile`](dockerfile) | `FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05`, installs system + Python deps (incl. `makani`, `torch-harmonics`, `earth2studio` extras), copies the workshop, prefetches Earth-2 data. |
+| [`launch.sh`](launch.sh) | VM-mode setup script — paste into the Brev launchable's setup-script field. Checks out the `brev-launchable` branch and runs `docker compose up -d`. |
+| [`docker-compose.yml`](docker-compose.yml) | Builds `dockerfile` (local context), requests all GPUs, exposes JupyterLab on `8888`. |
+| [`dockerfile`](dockerfile) | `FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05`, installs system + Python deps (incl. `makani`, `torch-harmonics`, `earth2studio` extras), copies the workshop. |
 | [`requirements.txt`](requirements.txt) | Simple/pinned Python packages (JupyterLab, cartopy, seaborn, windpowerlib, zarr, mlflow, …). |
 | [`entrypoint.sh`](entrypoint.sh) | Launches JupyterLab serving the workshop at `/workspace/dli`. |
 
-## Prerequisites
+## Create the launchable
 
-- A GPU instance with the NVIDIA Container Toolkit installed.
-- NGC access to pull the PhysicsNeMo base image
-  (`docker login nvcr.io` with an [NGC API key](https://docs.nvidia.com/ngc/ngc-catalog-user-guide/index.html#registering-activating-ngc-account)).
+1. In the Brev console, create a launchable in **VM mode** ("Basic VM").
+2. Set the **Git repository** to your fork
+   (`https://github.com/niallrobinson/End-to-End-AI-for-Science`). Brev clones
+   it to `/home/ubuntu/End-to-End-AI-for-Science`.
+3. Paste the contents of [`launch.sh`](launch.sh) as the **setup script**.
+4. Expose port **`8888`** and name it **`jupyter`** (gives an "Open Notebook"
+   button).
+5. Pick a GPU with ≥24 GB and ≥128 GB disk. Launch, then open the notebook and
+   start from `exercise_01_forecasting.ipynb`.
 
-## How the build context works
-
-Brev copies **only the compose file** to the launched instance and runs
-`docker compose up -d` — it does **not** clone the repo. So
-[`docker-compose.yml`](docker-compose.yml) uses a **git build context**:
-BuildKit clones this repo (`niallrobinson/End-to-End-AI-for-Science`, branch
-`brev-launchable`) and uses this workshop directory as the build context, so
-`dockerfile`/`COPY` paths resolve as normal. Update the `context:` URL if you
-fork/branch elsewhere.
-
-## Run on Brev
-
-Create a launchable and use this file as the compose file:
-`workspace/python/jupyter_notebook/GTC2025_WeatherForecastingWithEarth-2/brev/docker-compose.yml`.
-Brev builds the image on the instance (from the PhysicsNeMo base) and forwards
-port `8888` for JupyterLab. Then start from `exercise_01_forecasting.ipynb`.
+First launch builds on the instance (~15–25 min with the default
+`PREFETCH_EARTH2_DATA=0`); restarting the same instance reuses the built image.
 
 ## Run locally
 
-`docker compose -f brev/docker-compose.yml up` builds from the **git** context
-above (i.e. the pushed branch, not your working tree). To build from local
-working-tree changes, override the context to this directory:
+From **this workshop directory**:
 
 ```bash
-# from this workshop directory
-docker compose -f brev/docker-compose.yml build --set jupyter.build.context=..
-docker compose -f brev/docker-compose.yml up
+docker compose -f brev/docker-compose.yml up --build
 ```
 
 Then open <http://localhost:8888>.
 
 ## Notes
 
-- **Earth-2 data is prefetched into the image** at build time via this
-  workshop's `data/fetch_data.py` (cartopy coastlines + windpowerlib turbine
-  data) and `data/fetch_cache.py` (SFNO + CorrDiff-Taiwan checkpoints and the
-  GFS/ERA5/WB2 weather slices the notebooks use), cached under
-  `EARTH2STUDIO_CACHE` (`/workspace/data/earth2cache`). Sources are public — no
-  NGC/CDS credentials are required. This adds several GB and lengthens the build.
-  - To **skip** the heavy prefetch (e.g. a fast deps-only build), pass
-    `--build-arg PREFETCH_EARTH2_DATA=0`. earth2studio will then download model
-    packages on first use instead.
+- **Earth-2 data is *not* baked in by default** (`PREFETCH_EARTH2_DATA=0` in
+  [`docker-compose.yml`](docker-compose.yml)) — earth2studio downloads model
+  packages on first use in-notebook, keeping the build short. To bake the data
+  in instead (SFNO + CorrDiff-Taiwan checkpoints and the GFS/ERA5/WB2 weather
+  slices, via `data/fetch_data.py` + `data/fetch_cache.py`, cached under
+  `EARTH2STUDIO_CACHE`), set the arg to `"1"` — this adds several GB and ~15–35
+  min to the build. Sources are public; no NGC/CDS credentials needed.
 - `earth2studio` is installed from git at `0.14.0` with the
   `[data,corrdiff,perturbation,sfno]` extras, matching the workshop Dockerfile.
 - The launchable serves **only this workshop** (`/workspace/dli`); it does not

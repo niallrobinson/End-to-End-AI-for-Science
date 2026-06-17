@@ -4,8 +4,8 @@ This folder defines a [Brev](https://developer.nvidia.com/brev) launchable for t
 GTC2026 **"Hands-On with Earth-2"** workshop (StormCast training & inference, the
 notebooks in this directory). It builds on top of the official
 [NVIDIA PhysicsNeMo 25.11](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo?version=25.11)
-container and installs the workshop dependencies via Docker Compose, then serves
-the workshop in JupyterLab.
+container, installs the workshop dependencies, and serves the workshop in
+JupyterLab.
 
 It mirrors this workshop's own [`../Dockerfile`](../Dockerfile): JupyterLab runs
 in the base Python, and the workshop's pinned compute stack
@@ -17,49 +17,45 @@ with that kernel.
 > The image is **built from the PhysicsNeMo base on the instance** — nothing is
 > pushed to or pulled from a private registry.
 
+## How this works on Brev (VM mode)
+
+Brev's *compose-mode* launchables require a prebuilt, pullable image and reject
+`build:` contexts. To build on the instance from the PhysicsNeMo base (no
+published image), use a **VM-mode** launchable: Brev clones this repo onto the
+VM and runs a setup script that builds + starts the stack with
+`docker compose up -d`.
+
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| [`docker-compose.yml`](docker-compose.yml) | Brev entrypoint. Builds `dockerfile`, requests all GPUs, exposes JupyterLab on `8888`. |
+| [`launch.sh`](launch.sh) | VM-mode setup script — paste into the Brev launchable's setup-script field. Checks out the `brev-launchable` branch and runs `docker compose up -d`. |
+| [`docker-compose.yml`](docker-compose.yml) | Builds `dockerfile` (local context), requests all GPUs, exposes JupyterLab on `8888`. |
 | [`dockerfile`](dockerfile) | `FROM nvcr.io/nvidia/physicsnemo/physicsnemo:25.11`, installs JupyterLab + system deps, creates the `physicsnemo` uv-venv kernel, copies the workshop. |
 | [`requirements.txt`](requirements.txt) | Base-Python JupyterLab stack (`jupyterlab==4.5.4`, widgets, jupytext, …). |
 | [`entrypoint.sh`](entrypoint.sh) | Launches JupyterLab serving the workshop at `/dli/workshop`. |
 
-## Prerequisites
+## Create the launchable
 
-- A GPU instance with the NVIDIA Container Toolkit installed.
-- NGC access to pull the PhysicsNeMo base image
-  (`docker login nvcr.io` with an [NGC API key](https://docs.nvidia.com/ngc/ngc-catalog-user-guide/index.html#registering-activating-ngc-account)).
+1. In the Brev console, create a launchable in **VM mode** ("Basic VM").
+2. Set the **Git repository** to your fork
+   (`https://github.com/niallrobinson/End-to-End-AI-for-Science`). Brev clones
+   it to `/home/ubuntu/End-to-End-AI-for-Science`.
+3. Paste the contents of [`launch.sh`](launch.sh) as the **setup script**.
+4. Expose port **`8888`** and name it **`jupyter`** (gives an "Open Notebook"
+   button).
+5. Pick a GPU with adequate disk (≥128 GB). Launch, then run the notebooks under
+   `notebooks/` with the **`physicsnemo`** kernel.
 
-## How the build context works
-
-Brev copies **only the compose file** to the launched instance and runs
-`docker compose up -d` — it does **not** clone the repo. So
-[`docker-compose.yml`](docker-compose.yml) uses a **git build context**:
-BuildKit clones this repo (`niallrobinson/End-to-End-AI-for-Science`, branch
-`brev-launchable`) and uses this workshop directory as the build context, so
-`dockerfile`/`COPY` paths resolve as normal. Update the `context:` URL if you
-fork/branch elsewhere.
-
-## Run on Brev
-
-Create a launchable and use this file as the compose file:
-`workspace/python/jupyter_notebook/GTC2026_HandsOnWithEarth-2/brev/docker-compose.yml`.
-Brev builds the image on the instance (from the PhysicsNeMo base) and forwards
-port `8888` for JupyterLab. Then run the notebooks under `notebooks/` with the
-**`physicsnemo`** kernel.
+First launch builds on the instance (~20–35 min); restarting the same instance
+reuses the built image.
 
 ## Run locally
 
-`docker compose -f brev/docker-compose.yml up` builds from the **git** context
-above (i.e. the pushed branch, not your working tree). To build from local
-working-tree changes, override the context to this directory:
+From **this workshop directory**:
 
 ```bash
-# from this workshop directory
-docker compose -f brev/docker-compose.yml build --set jupyter.build.context=..
-docker compose -f brev/docker-compose.yml up
+docker compose -f brev/docker-compose.yml up --build
 ```
 
 Then open <http://localhost:8888>.

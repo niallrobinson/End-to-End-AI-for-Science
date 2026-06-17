@@ -2,25 +2,18 @@ name: gtc2026-earth2-stormcast
 
 # Brev launchable for the GTC2026 "Hands-On with Earth-2" (StormCast) workshop.
 #
-# IMPORTANT - how this works on Brev:
-#   Brev copies *only this compose file* to the instance and runs
-#   `docker compose up -d`; it does NOT clone the repo. So the build context is
-#   a *git URL* - BuildKit clones the repo itself and uses this workshop
-#   directory as the build context. The image is built locally from the
-#   PhysicsNeMo base on the instance; nothing is pulled from / pushed to a
-#   private registry.
-#
-# To build from local working-tree changes instead, override the context:
-#   docker compose -f brev/docker-compose.yml build \
-#     --set jupyter.build.context=..
-#   (run from this workshop directory), then `up`.
+# Use this with a Brev **VM-mode** launchable (NOT compose-mode, which requires
+# a prebuilt image). In VM mode Brev clones this repo onto the instance and runs
+# brev/launch.sh, which brings this stack up with `docker compose up -d`. The
+# image is built locally from the PhysicsNeMo base on the instance; nothing is
+# pulled from / pushed to a private registry. See brev/README.md.
 
 services:
   jupyter:
     build:
-      # git context: <repo>.git#<ref>:<subdir>. dockerfile + COPY paths are
-      # relative to <subdir> (this workshop directory).
-      context: "https://github.com/niallrobinson/End-to-End-AI-for-Science.git#brev-launchable:workspace/python/jupyter_notebook/GTC2026_HandsOnWithEarth-2"
+      # Local context = the workshop directory (parent of brev/). Available
+      # because Brev clones the repo onto the VM in VM mode.
+      context: ..
       dockerfile: brev/dockerfile
     # GPU + large-workload settings (mirrors the workshop's docker run flags).
     privileged: true
