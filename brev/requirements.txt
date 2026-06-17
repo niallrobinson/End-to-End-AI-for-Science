@@ -16,11 +16,14 @@ nbconvert
 # --- Plotting / scientific / data access ---
 # (mirrors the GTC2025 Earth-2 workshop deps; cartopy/seaborn/windpowerlib are
 #  used by its fetch_data.py plotting-asset prefetch)
+#
+# NB: the GTC2025 Dockerfile pins `warp-lang<1.13`, but that base had no warp
+# preinstalled. The PhysicsNeMo base already ships warp-lang>=1.13 (which
+# nvidia-physicsnemo *requires*), so we deliberately do NOT pin warp-lang here.
 cartopy
 seaborn
 windpowerlib==0.2.2
 zarr>=3
-warp-lang<1.13
 mlflow
 gdown
 cdsapi

@@ -65,3 +65,13 @@ instance and forwards port `8888` for JupyterLab.
 - Module-specific extras (DoMINO, Transolver, MagnetoHydrodynamics) can be
   installed from their own `requirements.txt` inside a running notebook if
   needed.
+
+## Known limitations
+
+- The PhysicsNeMo 26.05 base ships **CUDA 13**, while `onnxruntime-gpu` (pulled
+  in transitively by `earth2studio`) looks for CUDA 12 libraries. The
+  torch-based models used by the Earth-2 workshop (SFNO, CorrDiff) are
+  unaffected, but **ONNX-based** earth2studio models would fall back to CPU /
+  may not run on GPU on this base. Smoke-tested: `SFNO.load_default_package()` +
+  `load_model()` succeed, and `physicsnemo`/`makani`/`torch-harmonics` import
+  cleanly.
