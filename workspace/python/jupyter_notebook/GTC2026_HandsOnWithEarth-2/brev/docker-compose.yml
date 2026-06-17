@@ -1,0 +1,38 @@
+name: gtc2026-earth2-stormcast
+
+# Brev launchable for the GTC2026 "Hands-On with Earth-2" (StormCast) workshop.
+#
+# This builds the image locally from the official NVIDIA PhysicsNeMo 25.11
+# container (see brev/dockerfile) and installs the workshop dependencies. No
+# custom image is pulled or pushed - everything is built on the instance.
+#
+# Local usage (from this workshop directory):
+#   docker compose -f brev/docker-compose.yml up --build
+# then open http://localhost:8888
+
+services:
+  jupyter:
+    build:
+      # Build context is the workshop directory (the parent of brev/) so the
+      # image contains only this course.
+      context: ..
+      dockerfile: brev/dockerfile
+    image: gtc2026-earth2-stormcast:25.11  # local tag only, never pushed
+    pull_policy: missing
+    # GPU + large-workload settings (mirrors the workshop's docker run flags).
+    privileged: true
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    shm_size: 1g
+    ports:
+      - "8888:8888"  # JupyterLab
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Copyright (c) 2025 NVIDIA Corporation.  All rights reserved.
+#
+# Entrypoint for the Brev launchable: starts JupyterLab serving the GTC2026
+# "Hands-On with Earth-2" (StormCast) workshop. Brev forwards port 8888 to the
+# user. Open notebooks with the "physicsnemo" kernel.
+
+set -euo pipefail
+
+echo "Starting JupyterLab on 0.0.0.0:8888 ..."
+exec jupyter lab \
+    --ip=0.0.0.0 \
+    --port=8888 \
+    --allow-root \
+    --no-browser \
+    --ServerApp.token="${JUPYTER_TOKEN:-}" \
+    --ServerApp.password="" \
+    --notebook-dir=/dli/workshop

@@ -1,0 +1,11 @@
+# JupyterLab stack for the base Python, mirroring the workshop ../Dockerfile.
+#
+# The workshop's actual compute environment (earth2studio, nvidia-physicsnemo,
+# StormCast training deps) lives in an isolated uv venv set up in brev/dockerfile
+# and exposed as the Jupyter kernel "physicsnemo".
+
+jupyterlab==4.5.4
+jupyterlab-widgets
+jupyter-archive
+jupyter-resource-usage
+jupytext
