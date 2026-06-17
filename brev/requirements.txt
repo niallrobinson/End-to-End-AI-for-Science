@@ -1,20 +1,26 @@
-# Extra Python dependencies for the End-to-End AI for Science bootcamp,
+# Simple/pinned Python dependencies for the End-to-End AI for Science bootcamp,
 # installed on top of the NVIDIA PhysicsNeMo 26.05 base image.
+#
+# Git-based packages (torch-harmonics, makani, earth2studio[...]) are installed
+# in brev/dockerfile because they need pinned git revisions / build flags.
 
 # --- Jupyter ---
-jupyterlab
-jupyterlab-widgets
 ipywidgets
-ipympl
-jupyter-resource-usage
+jupyterlab>=4.3.6
+jupyterlab-widgets
 jupyter-archive
+jupyter-resource-usage
+ipympl
 nbconvert
 
-# --- Earth-2 / weather (Module 3 + GTC workshops) ---
-earth2studio==0.14.0
-
-# --- Scientific / plotting / data access ---
+# --- Plotting / scientific / data access ---
+# (mirrors the GTC2025 Earth-2 workshop deps; cartopy/seaborn/windpowerlib are
+#  used by its fetch_data.py plotting-asset prefetch)
 cartopy
+seaborn
+windpowerlib==0.2.2
+zarr>=3
+warp-lang<1.13
 mlflow
 gdown
 cdsapi

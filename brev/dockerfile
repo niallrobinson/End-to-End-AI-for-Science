@@ -1,23 +1,37 @@
 # Copyright (c) 2025 NVIDIA Corporation.  All rights reserved.
 #
 # Brev launchable image for the "End-to-End AI for Science" bootcamp.
-# This builds *on top of* the official NVIDIA PhysicsNeMo container and
-# installs the additional Python/system dependencies the notebooks need.
-# Nothing is pushed to a registry - Brev builds this locally on the instance
-# from the PhysicsNeMo base image via docker compose.
+# Builds *on top of* the official NVIDIA PhysicsNeMo container and installs the
+# additional dependencies + Earth-2 data the notebooks need. Nothing is pushed
+# to a registry - Brev builds this locally on the instance from the PhysicsNeMo
+# base image via docker compose.
+#
+# The dependency set mirrors the GTC2025 Earth-2 weather-forecasting workshop
+# Dockerfile (makani, torch-harmonics, earth2studio extras, plotting libs) so a
+# user lands in a fully-provisioned Earth-2 environment.
 #
 # Base image: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo
 
 FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05
 
+# --- Environment ---------------------------------------------------------------
+# Earth2Studio cache (model checkpoints + weather data) and runtime knobs,
+# mirroring the GTC2025 workshop Dockerfile.
 ENV DEBIAN_FRONTEND=noninteractive \
     SHELL=/bin/bash \
     PIP_ROOT_USER_ACTION=ignore \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HDF5_USE_FILE_LOCKING=FALSE \
+    LOGURU_LEVEL=INFO \
+    EARTH2STUDIO_CACHE=/workspace/data/earth2cache \
+    EARTH2STUDIO_PACKAGE_TIMEOUT=600 \
+    NGC_CLI_ORG=no-org \
+    NGC_CLI_TEAM=no-team \
+    GTC2025_DIR=/workspace/python/jupyter_notebook/GTC2025_WeatherForecastingWithEarth-2
 
-# System dependencies:
+# --- System dependencies -------------------------------------------------------
 #   ffmpeg            - rendering animations / videos in the notebooks
-#   git               - pip installs from git, notebook clones
+#   git               - pip installs from git
 #   libgl1/libegl1/.. - headless rendering for cartopy / matplotlib / pyvista
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -29,14 +43,42 @@ RUN apt-get update \
  && apt-get clean -y \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better Docker layer caching.
+# --- Python dependencies -------------------------------------------------------
+# Simple/pinned packages via requirements.txt (copied first for layer caching).
 COPY brev/requirements.txt /opt/requirements.txt
 RUN pip install --no-cache-dir -r /opt/requirements.txt \
  && rm -f /opt/requirements.txt \
  && jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true
 
-# Copy the bootcamp materials into the image.
+# Git-based packages, pinned to the same revisions as the GTC2025 workshop.
+# torch-harmonics needs torch present at build time -> --no-build-isolation.
+RUN pip install --no-cache-dir --no-build-isolation \
+    "torch-harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git@a632ca748a12bd9f74dbc1e00653317810991f74"
+RUN pip install --no-cache-dir \
+    "makani @ git+https://github.com/NVIDIA/makani.git@b38fcb2799d7dbc146fa60459f3f9823394a8bf1"
+RUN pip install --no-cache-dir \
+    "earth2studio[data,corrdiff,perturbation,sfno] @ git+https://github.com/NVIDIA/earth2studio.git@0.14.0"
+# Prefer nvidia-ml-py over the deprecated pynvml (matches GTC2025).
+RUN pip install --no-cache-dir nvidia-ml-py && pip uninstall -y pynvml || true
+
+# --- Bootcamp materials --------------------------------------------------------
 COPY workspace/ /workspace/
+
+# --- Earth-2 data prefetch -----------------------------------------------------
+# fetch_data.py  -> cartopy coastlines + windpowerlib turbine data (plotting)
+# fetch_cache.py -> SFNO + CorrDiff-Taiwan checkpoints and the GFS/ERA5/WB2
+#                   weather slices used by the workshop notebooks, cached into
+#                   EARTH2STUDIO_CACHE. Public sources, no credentials required.
+# Set PREFETCH_EARTH2_DATA=0 at build time to skip the (multi-GB) download.
+ARG PREFETCH_EARTH2_DATA=1
+RUN mkdir -p "$EARTH2STUDIO_CACHE" \
+ && if [ "$PREFETCH_EARTH2_DATA" = "1" ]; then \
+      echo "Prefetching Earth-2 plotting assets + model/weather cache ..." \
+      && python "$GTC2025_DIR/data/fetch_data.py" \
+      && python "$GTC2025_DIR/data/fetch_cache.py" ; \
+    else \
+      echo "Skipping Earth-2 data prefetch (PREFETCH_EARTH2_DATA=$PREFETCH_EARTH2_DATA)" ; \
+    fi
 
 WORKDIR /workspace/python
 EXPOSE 8888

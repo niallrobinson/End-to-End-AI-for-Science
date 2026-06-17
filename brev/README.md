@@ -3,8 +3,14 @@
 This folder defines a [Brev](https://developer.nvidia.com/brev) launchable for the
 **End-to-End AI for Science** bootcamp. It builds on top of the official
 [NVIDIA PhysicsNeMo 26.05](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo?version=26.05)
-container and installs the additional dependencies the notebooks need via
-Docker Compose, then serves the bootcamp in JupyterLab.
+container and installs the additional dependencies **and Earth-2 data** the
+notebooks need via Docker Compose, then serves the bootcamp in JupyterLab.
+
+The dependency set mirrors the
+[GTC2025 Earth-2 weather-forecasting workshop Dockerfile](../workspace/python/jupyter_notebook/GTC2025_WeatherForecastingWithEarth-2/Dockerfile)
+— including `makani`, `torch-harmonics`, the full `earth2studio` extras, and the
+prefetched Earth-2 model checkpoints + weather data — so users land in a
+fully-provisioned environment.
 
 > The image is **built from the PhysicsNeMo base on the instance** — nothing is
 > pushed to or pulled from a private registry.
@@ -14,8 +20,8 @@ Docker Compose, then serves the bootcamp in JupyterLab.
 | File | Purpose |
 | --- | --- |
 | [`docker-compose.yml`](docker-compose.yml) | Brev entrypoint. Builds `dockerfile`, requests all GPUs, exposes JupyterLab on `8888`. |
-| [`dockerfile`](dockerfile) | `FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05`, installs system + Python deps, copies `workspace/`. |
-| [`requirements.txt`](requirements.txt) | Extra Python packages (JupyterLab, Earth2Studio, cartopy, mlflow, …). |
+| [`dockerfile`](dockerfile) | `FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05`, installs system + Python deps (incl. `makani`, `torch-harmonics`, `earth2studio` extras), copies `workspace/`, prefetches Earth-2 data. |
+| [`requirements.txt`](requirements.txt) | Simple/pinned Python packages (JupyterLab, cartopy, seaborn, windpowerlib, zarr, mlflow, …). |
 | [`entrypoint.sh`](entrypoint.sh) | Launches JupyterLab serving `/workspace/python`. |
 
 ## Prerequisites
@@ -42,11 +48,20 @@ instance and forwards port `8888` for JupyterLab.
 
 ## Notes
 
-- **Datasets are fetched on demand** rather than baked into the image. The
-  relevant notebooks/scripts download data when first run (see
-  `workspace/python/source_code/dataset.py`). This keeps the image small and
-  avoids flaky downloads during the build.
-- `earth2studio` is pinned to `0.14.0` to match the version used by the
-  in-repo GTC Earth-2 workshops. Module-specific extras (DoMINO, Transolver,
-  MagnetoHydrodynamics) can be installed from their own `requirements.txt`
-  inside a running notebook if needed.
+- **Earth-2 data is prefetched into the image** at build time via the GTC2025
+  workshop's `fetch_data.py` (cartopy coastlines + windpowerlib turbine data)
+  and `fetch_cache.py` (SFNO + CorrDiff-Taiwan checkpoints and the GFS/ERA5/WB2
+  weather slices the notebooks use), cached under `EARTH2STUDIO_CACHE`
+  (`/workspace/data/earth2cache`). Sources are public — no NGC/CDS credentials
+  are required. This adds several GB and lengthens the build.
+  - To **skip** the heavy prefetch (e.g. a fast deps-only build), pass
+    `--build-arg PREFETCH_EARTH2_DATA=0`. earth2studio will then download model
+    packages on first use instead.
+- `earth2studio` is installed from git at `0.14.0` with the
+  `[data,corrdiff,perturbation,sfno]` extras, matching the GTC2025 workshop.
+- The **bootcamp datasets** (FourCastNet/Navier-Stokes/etc. under
+  `workspace/python/source_code/dataset.py`) are **not** baked in; those
+  notebooks download what they need on first run.
+- Module-specific extras (DoMINO, Transolver, MagnetoHydrodynamics) can be
+  installed from their own `requirements.txt` inside a running notebook if
+  needed.
