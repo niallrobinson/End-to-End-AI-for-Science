@@ -1,22 +1,23 @@
 # Copyright (c) 2025 NVIDIA Corporation.  All rights reserved.
 #
-# Brev launchable image for the "End-to-End AI for Science" bootcamp.
-# Builds *on top of* the official NVIDIA PhysicsNeMo container and installs the
-# additional dependencies + Earth-2 data the notebooks need. Nothing is pushed
-# to a registry - Brev builds this locally on the instance from the PhysicsNeMo
-# base image via docker compose.
+# Brev launchable image for the GTC2025 "Applying AI Weather Models with
+# NVIDIA Earth-2" workshop. Builds *on top of* the official NVIDIA PhysicsNeMo
+# container and installs the workshop dependencies + Earth-2 data. Nothing is
+# pushed to a registry - Brev builds this locally on the instance from the
+# PhysicsNeMo base via docker compose.
 #
-# The dependency set mirrors the GTC2025 Earth-2 weather-forecasting workshop
-# Dockerfile (makani, torch-harmonics, earth2studio extras, plotting libs) so a
-# user lands in a fully-provisioned Earth-2 environment.
+# This mirrors the workshop's own ../Dockerfile (makani, torch-harmonics,
+# earth2studio extras, plotting libs, Earth-2 cache) but on the PhysicsNeMo
+# 26.05 base instead of the plain PyTorch base.
+#
+# The docker build context is the workshop directory (brev/..), so the image
+# contains only this course.
 #
 # Base image: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/physicsnemo/containers/physicsnemo
 
 FROM nvcr.io/nvidia/physicsnemo/physicsnemo:26.05
 
 # --- Environment ---------------------------------------------------------------
-# Earth2Studio cache (model checkpoints + weather data) and runtime knobs,
-# mirroring the GTC2025 workshop Dockerfile.
 ENV DEBIAN_FRONTEND=noninteractive \
     SHELL=/bin/bash \
     PIP_ROOT_USER_ACTION=ignore \
@@ -27,12 +28,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     EARTH2STUDIO_PACKAGE_TIMEOUT=600 \
     NGC_CLI_ORG=no-org \
     NGC_CLI_TEAM=no-team \
-    GTC2025_DIR=/workspace/python/jupyter_notebook/GTC2025_WeatherForecastingWithEarth-2
+    COURSE_DIR=/workspace/dli
 
 # --- System dependencies -------------------------------------------------------
-#   ffmpeg            - rendering animations / videos in the notebooks
-#   git               - pip installs from git
-#   libgl1/libegl1/.. - headless rendering for cartopy / matplotlib / pyvista
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -50,7 +48,7 @@ RUN pip install --no-cache-dir -r /opt/requirements.txt \
  && rm -f /opt/requirements.txt \
  && jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true
 
-# Git-based packages, pinned to the same revisions as the GTC2025 workshop.
+# Git-based packages, pinned to the same revisions as the workshop ../Dockerfile.
 # torch-harmonics needs torch present at build time -> --no-build-isolation.
 RUN pip install --no-cache-dir --no-build-isolation \
     "torch-harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git@a632ca748a12bd9f74dbc1e00653317810991f74"
@@ -58,11 +56,13 @@ RUN pip install --no-cache-dir \
     "makani @ git+https://github.com/NVIDIA/makani.git@b38fcb2799d7dbc146fa60459f3f9823394a8bf1"
 RUN pip install --no-cache-dir \
     "earth2studio[data,corrdiff,perturbation,sfno] @ git+https://github.com/NVIDIA/earth2studio.git@0.14.0"
-# Prefer nvidia-ml-py over the deprecated pynvml (matches GTC2025).
+# Prefer nvidia-ml-py over the deprecated pynvml (matches the workshop Dockerfile).
 RUN pip install --no-cache-dir nvidia-ml-py && pip uninstall -y pynvml || true
 
-# --- Bootcamp materials --------------------------------------------------------
-COPY workspace/ /workspace/
+# --- Workshop materials --------------------------------------------------------
+# Build context is the workshop directory; copy it in (minus this brev/ folder).
+COPY . /workspace/dli
+RUN rm -rf /workspace/dli/brev
 
 # --- Earth-2 data prefetch -----------------------------------------------------
 # fetch_data.py  -> cartopy coastlines + windpowerlib turbine data (plotting)
@@ -74,13 +74,13 @@ ARG PREFETCH_EARTH2_DATA=1
 RUN mkdir -p "$EARTH2STUDIO_CACHE" \
  && if [ "$PREFETCH_EARTH2_DATA" = "1" ]; then \
       echo "Prefetching Earth-2 plotting assets + model/weather cache ..." \
-      && python "$GTC2025_DIR/data/fetch_data.py" \
-      && python "$GTC2025_DIR/data/fetch_cache.py" ; \
+      && python /workspace/dli/data/fetch_data.py \
+      && python /workspace/dli/data/fetch_cache.py ; \
     else \
       echo "Skipping Earth-2 data prefetch (PREFETCH_EARTH2_DATA=$PREFETCH_EARTH2_DATA)" ; \
     fi
 
-WORKDIR /workspace/python
+WORKDIR /workspace/dli
 EXPOSE 8888
 
 COPY brev/entrypoint.sh /usr/local/bin/entrypoint.sh
