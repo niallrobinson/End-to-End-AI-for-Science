@@ -32,24 +32,37 @@ with that kernel.
 - NGC access to pull the PhysicsNeMo base image
   (`docker login nvcr.io` with an [NGC API key](https://docs.nvidia.com/ngc/ngc-catalog-user-guide/index.html#registering-activating-ngc-account)).
 
-## Run locally
+## How the build context works
 
-From **this workshop directory** (the build context is its parent, i.e. this
-directory):
-
-```bash
-docker compose -f brev/docker-compose.yml up --build
-```
-
-Then open <http://localhost:8888> and run the notebooks under `notebooks/` with
-the **`physicsnemo`** kernel.
+Brev copies **only the compose file** to the launched instance and runs
+`docker compose up -d` — it does **not** clone the repo. So
+[`docker-compose.yml`](docker-compose.yml) uses a **git build context**:
+BuildKit clones this repo (`niallrobinson/End-to-End-AI-for-Science`, branch
+`brev-launchable`) and uses this workshop directory as the build context, so
+`dockerfile`/`COPY` paths resolve as normal. Update the `context:` URL if you
+fork/branch elsewhere.
 
 ## Run on Brev
 
-Create a launchable pointing at this repository and select
-`workspace/python/jupyter_notebook/GTC2026_HandsOnWithEarth-2/brev/docker-compose.yml`
-as the compose file. Brev builds the image on the instance and forwards port
-`8888` for JupyterLab.
+Create a launchable and use this file as the compose file:
+`workspace/python/jupyter_notebook/GTC2026_HandsOnWithEarth-2/brev/docker-compose.yml`.
+Brev builds the image on the instance (from the PhysicsNeMo base) and forwards
+port `8888` for JupyterLab. Then run the notebooks under `notebooks/` with the
+**`physicsnemo`** kernel.
+
+## Run locally
+
+`docker compose -f brev/docker-compose.yml up` builds from the **git** context
+above (i.e. the pushed branch, not your working tree). To build from local
+working-tree changes, override the context to this directory:
+
+```bash
+# from this workshop directory
+docker compose -f brev/docker-compose.yml build --set jupyter.build.context=..
+docker compose -f brev/docker-compose.yml up
+```
+
+Then open <http://localhost:8888>.
 
 ## Notes
 

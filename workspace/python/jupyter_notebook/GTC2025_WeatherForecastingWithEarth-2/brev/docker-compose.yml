@@ -3,24 +3,30 @@ name: gtc2025-earth2-weather
 # Brev launchable for the GTC2025 "Applying AI Weather Models with NVIDIA
 # Earth-2" workshop.
 #
-# This builds the image locally from the official NVIDIA PhysicsNeMo 26.05
-# container (see brev/dockerfile) and installs the workshop dependencies +
-# Earth-2 data. No custom image is pulled or pushed - everything is built on
-# the instance.
+# IMPORTANT - how this works on Brev:
+#   Brev copies *only this compose file* to the instance and runs
+#   `docker compose up -d`; it does NOT clone the repo. So the build context is
+#   a *git URL* - BuildKit clones the repo itself and uses this workshop
+#   directory as the build context. The image is built locally from the
+#   PhysicsNeMo base on the instance; nothing is pulled from / pushed to a
+#   private registry.
 #
-# Local usage (from this workshop directory):
-#   docker compose -f brev/docker-compose.yml up --build
-# then open http://localhost:8888
+# To build from local working-tree changes instead, override the context:
+#   docker compose -f brev/docker-compose.yml build \
+#     --set jupyter.build.context=..
+#   (run from this workshop directory), then `up`.
 
 services:
   jupyter:
     build:
-      # Build context is the workshop directory (the parent of brev/) so the
-      # image contains only this course.
-      context: ..
+      # git context: <repo>.git#<ref>:<subdir>. dockerfile + COPY paths are
+      # relative to <subdir> (this workshop directory).
+      context: "https://github.com/niallrobinson/End-to-End-AI-for-Science.git#brev-launchable:workspace/python/jupyter_notebook/GTC2025_WeatherForecastingWithEarth-2"
       dockerfile: brev/dockerfile
-    image: gtc2025-earth2-weather:26.05  # local tag only, never pushed
-    pull_policy: missing
+      args:
+        # Set to "0" for a faster launch (skips the multi-GB Earth-2 data bake;
+        # earth2studio then downloads models on first use).
+        PREFETCH_EARTH2_DATA: "1"
     # GPU + large-workload settings (mirrors the workshop's docker run flags).
     privileged: true
     ipc: host
