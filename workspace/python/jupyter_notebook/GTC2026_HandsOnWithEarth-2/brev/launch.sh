@@ -14,6 +14,12 @@ REPO_DIR="${REPO_DIR:-/home/ubuntu/End-to-End-AI-for-Science}"
 BRANCH="${BREV_BRANCH:-brev-launchable}"
 WORKSHOP="workspace/python/jupyter_notebook/GTC2026_HandsOnWithEarth-2"
 
+# Fall back to auto-detecting the clone location if the default path isn't there
+# (Brev usually clones to /home/ubuntu/<repo-name>).
+if [ ! -d "$REPO_DIR/.git" ]; then
+  REPO_DIR="$(find /home/ubuntu "$HOME" -maxdepth 3 -name .git -type d 2>/dev/null | head -1 | xargs -r dirname)"
+fi
+
 # The brev/ folders live on the brev-launchable branch (not the fork's default
 # branch), so make sure we're on it.
 cd "$REPO_DIR"
