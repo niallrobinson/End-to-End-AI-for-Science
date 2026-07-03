@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Copyright (c) 2025 NVIDIA Corporation.  All rights reserved.
 #
 # Brev VM-mode setup script for the GTC2025 "Applying AI Weather Models with
